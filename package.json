@@ -19,7 +19,7 @@
   ],
   "files": [
     "index.d.ts",
-    "index.js",
+    "index.js"
   ],
   "napi": {
     "binaryName": "xsd-validator",
