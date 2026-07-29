@@ -1,0 +1,26 @@
+[package]
+edition = "2021"
+name = "xsd_validator"
+version = "0.1.0"
+license = "MIT"
+description = "Node.js native addon for XSD validation via vendored libxml2"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi-derive = "3"
+
+[dependencies.napi]
+version = "3"
+features = ["napi9", "async"]
+
+[build-dependencies]
+napi-build = "2"
+cmake = "0.1"
+cc = "1.2"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = "symbols"
