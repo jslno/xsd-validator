@@ -1,6 +1,6 @@
 {
   "name": "@jslno/xsd-validator",
-  "version": "1.1.1",
+  "version": "0.1.0",
   "description": "Validate XML against XSD schemas using a napi-rs native addon with statically linked libxml2",
   "main": "index.js",
   "types": "index.d.ts",
@@ -104,13 +104,5 @@
     "singleQuote": true,
     "arrowParens": "always"
   },
-  "packageManager": "pnpm@11.18.0",
-  "optionalDependencies": {
-    "@jslno/xsd-validator-darwin-arm64": "1.1.1",
-    "@jslno/xsd-validator-linux-arm64-gnu": "1.1.1",
-    "@jslno/xsd-validator-win32-arm64-msvc": "1.1.1",
-    "@jslno/xsd-validator-darwin-x64": "1.1.1",
-    "@jslno/xsd-validator-win32-x64-msvc": "1.1.1",
-    "@jslno/xsd-validator-linux-x64-gnu": "1.1.1"
-  }
+  "packageManager": "pnpm@11.18.0"
 }
