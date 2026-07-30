@@ -4,5 +4,6 @@ target
 /*.mjs
 /*.cjs
 /index.js
+vendor
 index.d.ts
 pnpm-lock.yaml

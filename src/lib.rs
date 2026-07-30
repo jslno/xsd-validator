@@ -13,9 +13,9 @@ use error::{
 use libxml::{
   xmlCleanupParser, xmlFreeDoc, xmlInitParser, xmlReadMemory, xmlResetLastError,
   xmlSchemaCleanupTypes, xmlSchemaFree, xmlSchemaFreeParserCtxt, xmlSchemaFreeValidCtxt,
-  xmlSchemaNewParserCtxt, xmlSchemaNewValidCtxt, xmlSchemaParse, xmlSchemaSetParserStructuredErrors,
-  xmlSchemaSetResourceLoader, xmlSchemaSetValidStructuredErrors, xmlSchemaValidateDoc,
-  XML_PARSE_COMPACT, XML_PARSE_NONET,
+  xmlSchemaNewParserCtxt, xmlSchemaNewValidCtxt, xmlSchemaParse,
+  xmlSchemaSetParserStructuredErrors, xmlSchemaSetResourceLoader,
+  xmlSchemaSetValidStructuredErrors, xmlSchemaValidateDoc, XML_PARSE_COMPACT, XML_PARSE_NONET,
 };
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
@@ -77,9 +77,7 @@ impl XsdValidator {
   /// fetch `xs:include` / `xs:import` targets. It is never invoked from a
   /// libxml2 C callback thread. Omit the loader when the root XSD has no
   /// external references.
-  #[napi(
-    ts_args_type = "rootXsd: string, loader?: (filename: string) => string | Promise<string>"
-  )]
+  #[napi(ts_args_type = "rootXsd: string, loader?: (filename: string) => string | Promise<string>")]
   pub async fn create(root_xsd: String, loader: Option<SchemaLoader>) -> Result<Self> {
     if root_xsd.trim().is_empty() {
       return Err(napi_error("root XSD must not be empty"));
@@ -162,9 +160,7 @@ impl XsdValidator {
 
       // libxml2: 0 = valid, positive = validation error, -1 = internal error
       if code < 0 {
-        return Err(
-          collector.into_napi_error("internal error while validating XML against XSD"),
-        );
+        return Err(collector.into_napi_error("internal error while validating XML against XSD"));
       }
 
       Ok(code == 0)

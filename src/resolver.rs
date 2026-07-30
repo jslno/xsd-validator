@@ -16,8 +16,8 @@
 
 use crate::error::{napi_error, ErrorCollector};
 use crate::libxml::{
-  cstr_to_string, xml_char_to_string, xmlBuildURI, xmlNewInputFromMemory, xmlParserErrors,
-  xmlParserInput, xmlRegisterInputCallbacks, xmlResourceType, xsd_collect_schema_locations,
+  cstr_to_string, xmlBuildURI, xmlNewInputFromMemory, xmlParserErrors, xmlParserInput,
+  xmlRegisterInputCallbacks, xmlResourceType, xml_char_to_string, xsd_collect_schema_locations,
 };
 use napi::threadsafe_function::ThreadsafeFunction;
 use napi::{bindgen_prelude::Either, bindgen_prelude::Promise, Result, Status};
@@ -111,12 +111,7 @@ async fn call_loader(loader: &SchemaLoader, filename: &str) -> Result<String> {
   let result = loader
     .call_async_catch(filename.to_string())
     .await
-    .map_err(|err| {
-      napi_error(format!(
-        "schema loader failed for '{}': {}",
-        filename, err
-      ))
-    })?;
+    .map_err(|err| napi_error(format!("schema loader failed for '{}': {}", filename, err)))?;
 
   match result {
     Either::A(s) => Ok(s),
@@ -155,10 +150,7 @@ pub fn extract_schema_locations(xsd: &str, base_path: &str) -> Result<Vec<String
       }
       crate::libxml::xmlResetLastError();
     }
-    return Err(collector.into_napi_error(&format!(
-      "failed to parse schema '{}'",
-      base_path
-    )));
+    return Err(collector.into_napi_error(&format!("failed to parse schema '{}'", base_path)));
   }
 
   Ok(locations)
@@ -191,10 +183,7 @@ pub fn resolve_schema_location(base: &str, location: &str) -> String {
   if let Ok(base_c) = CString::new(base) {
     if let Ok(loc_c) = CString::new(location) {
       unsafe {
-        let built = xmlBuildURI(
-          loc_c.as_ptr() as *const u8,
-          base_c.as_ptr() as *const u8,
-        );
+        let built = xmlBuildURI(loc_c.as_ptr() as *const u8, base_c.as_ptr() as *const u8);
         if !built.is_null() {
           let resolved = xml_char_to_string(built).unwrap_or_else(|| location.to_string());
           crate::libxml::xml_free_xmlchar(built);
@@ -449,7 +438,11 @@ unsafe extern "C" fn vfs_input_open(filename: *const c_char) -> *mut c_void {
   Box::into_raw(ctx) as *mut c_void
 }
 
-unsafe extern "C" fn vfs_input_read(context: *mut c_void, buffer: *mut c_char, len: c_int) -> c_int {
+unsafe extern "C" fn vfs_input_read(
+  context: *mut c_void,
+  buffer: *mut c_char,
+  len: c_int,
+) -> c_int {
   if context.is_null() || buffer.is_null() || len <= 0 {
     return -1;
   }

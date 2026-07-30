@@ -62,10 +62,10 @@ test('validates XML against a multi-file XSD', async (t) => {
 </Person>`
 
   try {
-    validator.validateOrThrow(invalidXml);
-    t.fail();
+    validator.validateOrThrow(invalidXml)
+    t.fail()
   } catch {
-    t.pass();
+    t.pass()
   }
 })
 
@@ -79,11 +79,7 @@ test('creates a validator from a single-file XSD without a loader', async (t) =>
 </xs:schema>`
 
   const validator = await XsdValidator.create(root)
-  t.true(
-    validator.validate(
-      `<?xml version="1.0" encoding="UTF-8"?><Hello xmlns="urn:example">world</Hello>`,
-    ),
-  )
+  t.true(validator.validate(`<?xml version="1.0" encoding="UTF-8"?><Hello xmlns="urn:example">world</Hello>`))
 })
 
 test('throws when includes exist but no loader is provided', async (t) => {

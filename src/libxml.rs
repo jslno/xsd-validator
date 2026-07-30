@@ -127,13 +127,11 @@ pub type xmlResourceLoader = Option<
 pub type xmlStructuredErrorFunc =
   Option<unsafe extern "C" fn(user_data: *mut c_void, error: *const xmlError)>;
 
-pub type xmlInputMatchCallback =
-  Option<unsafe extern "C" fn(filename: *const c_char) -> c_int>;
+pub type xmlInputMatchCallback = Option<unsafe extern "C" fn(filename: *const c_char) -> c_int>;
 pub type xmlInputOpenCallback =
   Option<unsafe extern "C" fn(filename: *const c_char) -> *mut c_void>;
-pub type xmlInputReadCallback = Option<
-  unsafe extern "C" fn(context: *mut c_void, buffer: *mut c_char, len: c_int) -> c_int,
->;
+pub type xmlInputReadCallback =
+  Option<unsafe extern "C" fn(context: *mut c_void, buffer: *mut c_char, len: c_int) -> c_int>;
 pub type xmlInputCloseCallback = Option<unsafe extern "C" fn(context: *mut c_void) -> c_int>;
 
 extern "C" {
@@ -226,11 +224,7 @@ pub unsafe fn cstr_to_string(ptr: *const c_char) -> Option<String> {
   if ptr.is_null() {
     return None;
   }
-  Some(
-    std::ffi::CStr::from_ptr(ptr)
-      .to_string_lossy()
-      .into_owned(),
-  )
+  Some(std::ffi::CStr::from_ptr(ptr).to_string_lossy().into_owned())
 }
 
 #[inline]

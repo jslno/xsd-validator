@@ -14,8 +14,14 @@ fn main() {
     );
   }
 
-  println!("cargo:rerun-if-changed={}", libxml2_src.join("CMakeLists.txt").display());
-  println!("cargo:rerun-if-changed={}", libxml2_src.join("VERSION").display());
+  println!(
+    "cargo:rerun-if-changed={}",
+    libxml2_src.join("CMakeLists.txt").display()
+  );
+  println!(
+    "cargo:rerun-if-changed={}",
+    libxml2_src.join("VERSION").display()
+  );
   println!(
     "cargo:rerun-if-changed={}",
     manifest_dir.join("native").join("schema_refs.c").display()
