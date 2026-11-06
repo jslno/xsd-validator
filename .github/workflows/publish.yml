@@ -2,6 +2,7 @@ name: Publish
 
 on:
   workflow_call:
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -24,6 +25,8 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
+          registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
 
       - name: Install dependencies
         run: pnpm install

@@ -1,7 +1,7 @@
 {
   "name": "@jslno/xsd-validator",
   "version": "0.1.0",
-  "description": "Validate XML against XSD schemas using a napi-rs native addon with statically linked libxml2",
+  "description": "Node.js native addon for XSD validation via vendored libxml2",
   "main": "index.js",
   "types": "index.d.ts",
   "repository": {
@@ -54,23 +54,23 @@
     "version": "napi version"
   },
   "devDependencies": {
-    "@emnapi/core": "^1.5.0",
-    "@emnapi/runtime": "^1.5.0",
-    "@napi-rs/cli": "^3.2.0",
-    "@napi-rs/wasm-runtime": "^1.0.4",
-    "@oxc-node/core": "^0.1.0",
+    "@emnapi/core": "^1.11.3",
+    "@emnapi/runtime": "^1.11.3",
+    "@napi-rs/cli": "^3.10.12",
+    "@napi-rs/wasm-runtime": "^1.2.7",
+    "@oxc-node/core": "^0.1.7",
     "@taplo/cli": "^0.7.0",
-    "@tybys/wasm-util": "^0.10.0",
-    "ava": "^8.0.0",
+    "@tybys/wasm-util": "^0.10.4",
+    "ava": "^8.3.0",
     "chalk": "^5.6.2",
-    "emnapi": "^1.5.0",
+    "emnapi": "^1.11.3",
     "husky": "^9.1.7",
-    "lint-staged": "^17.0.0",
-    "npm-run-all2": "^9.0.0",
-    "oxlint": "^1.14.0",
-    "prettier": "^3.6.2",
-    "tinybench": "^6.0.0",
-    "typescript": "^7.0.0"
+    "lint-staged": "^17.6.0",
+    "npm-run-all2": "^9.0.4",
+    "oxlint": "^1.91.0",
+    "prettier": "^3.9.10",
+    "tinybench": "^6.2.3",
+    "typescript": "^7.0.2"
   },
   "lint-staged": {
     "*.@(js|ts|tsx)": [
@@ -104,5 +104,5 @@
     "singleQuote": true,
     "arrowParens": "always"
   },
-  "packageManager": "pnpm@11.18.0"
+  "packageManager": "pnpm@12.16.1"
 }
