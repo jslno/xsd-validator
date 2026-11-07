@@ -123,8 +123,6 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-          registry-url: 'https://registry.npmjs.org'
-          package-manager-cache: false
 
       - name: Download artifacts
         uses: actions/download-artifact@v8
@@ -148,4 +146,5 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           npm config set provenance true
+          echo "//registry.npmjs.org/:_authToken=$NPM_TOKEN" >> ~/.npmrc
           npm publish --access public
