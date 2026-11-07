@@ -81,6 +81,8 @@ jobs:
           submodules: recursive
       - name: setup pnpm
         uses: pnpm/action-setup@v6
+        with:
+          version: 12.16.1
       - name: Setup node
         uses: actions/setup-node@v7
         with:
@@ -169,6 +171,8 @@ jobs:
           submodules: recursive
       - name: setup pnpm
         uses: pnpm/action-setup@v6
+        with:
+          version: 12.16.1
       - name: Setup node
         uses: actions/setup-node@v7
         with:
@@ -206,6 +210,8 @@ jobs:
           submodules: recursive
       - name: setup pnpm
         uses: pnpm/action-setup@v6
+        with:
+          version: 12.16.1
       - name: Setup node
         uses: actions/setup-node@v7
         with:
