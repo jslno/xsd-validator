@@ -1,5 +1,5 @@
 {
-  "name": "@jslno/xsd-validator",
+  "name": "@zugferd/xsd-validator",
   "version": "0.1.0",
   "description": "Node.js native addon for XSD validation via vendored libxml2",
   "main": "index.js",
