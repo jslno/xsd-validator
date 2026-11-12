@@ -8,6 +8,7 @@
     "deploy": "wrangler deploy"
   },
   "dependencies": {
+    "@zugferd/xsd-validator": "file:../..",
     "@zugferd/xsd-validator-wasm32-wasip1": "^0.1.1"
   },
   "devDependencies": {

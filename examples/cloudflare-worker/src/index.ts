@@ -1,6 +1,4 @@
-import type { XsdValidator } from '@zugferd/xsd-validator-wasm32-wasip1'
-import { instantiate } from '@zugferd/xsd-validator-wasm32-wasip1/workerd'
-import wasmModule from '@zugferd/xsd-validator-wasm32-wasip1/wasm.wasm'
+import { XsdValidator } from '@zugferd/xsd-validator'
 
 const ROOT_XSD = `<?xml version="1.0" encoding="UTF-8"?>
 <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"
@@ -32,19 +30,18 @@ const SCHEMAS: Record<string, string> = {
 </xs:schema>`,
 }
 
-// Compile once per isolate and reuse across requests.
+// The Workers entry instantiates the wasm module on import. Compile the schema
+// once per isolate and reuse it across requests.
 let validator: Promise<XsdValidator> | undefined
 
 async function getValidator(): Promise<XsdValidator> {
-  validator ??= instantiate(wasmModule).then(({ XsdValidator }) =>
-    XsdValidator.create(ROOT_XSD, (filename) => {
-      const schema = SCHEMAS[filename]
-      if (!schema) {
-        throw new Error(`unknown schema: ${filename}`)
-      }
-      return schema
-    }),
-  )
+  validator ??= XsdValidator.create(ROOT_XSD, (filename) => {
+    const schema = SCHEMAS[filename]
+    if (!schema) {
+      throw new Error(`unknown schema: ${filename}`)
+    }
+    return schema
+  })
   return validator
 }
 

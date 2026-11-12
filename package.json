@@ -21,8 +21,20 @@
   "files": [
     "index.d.ts",
     "index.js",
-    "browser.js"
+    "browser.js",
+    "workers.mjs"
   ],
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "workerd": "./workers.mjs",
+      "browser": "./browser.js",
+      "require": "./index.js",
+      "node": "./index.js",
+      "default": "./index.js"
+    },
+    "./*": "./*"
+  },
   "napi": {
     "binaryName": "xsd-validator",
     "targets": [
