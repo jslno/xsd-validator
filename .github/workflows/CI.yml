@@ -302,13 +302,27 @@ jobs:
           pnpm napi create-npm-dirs
           node -e '
             const fs = require("node:fs")
-            const dir = "npm/wasm32-wasip1"
-            for (const file of require(`./${dir}/package.json`).files) {
-              if (fs.existsSync(file)) fs.copyFileSync(file, `${dir}/${file}`)
+            const path = require("node:path")
+            const wasmDir = "npm/wasm32-wasip1"
+            for (const file of require(`./${wasmDir}/package.json`).files) {
+              if (fs.existsSync(file)) fs.copyFileSync(file, `${wasmDir}/${file}`)
+            }
+            const root = require("./package.json")
+            const pkgDir = "npm/xsd-validator"
+            fs.mkdirSync(pkgDir, { recursive: true })
+            fs.copyFileSync("package.json", path.join(pkgDir, "package.json"))
+            for (const file of root.files) {
+              const from = file
+              const to = path.join(pkgDir, file)
+              fs.mkdirSync(path.dirname(to), { recursive: true })
+              if (fs.existsSync(from)) fs.copyFileSync(from, to)
             }
           '
           cd examples/cloudflare-worker
-          npm install --force --no-audit --no-fund ../../npm/wasm32-wasip1
+          # --install-links copies the packages into node_modules. A symlink
+          # makes Wrangler resolve workers.mjs from npm/xsd-validator, where
+          # the wasm package is not installed.
+          npm install --force --install-links ../../npm/xsd-validator ../../npm/wasm32-wasip1
           npx wrangler deploy --dry-run --outdir dist
           # Workers Free rejects scripts above 3 MiB gzipped.
           size=$(cat dist/*.js dist/*.wasm | gzip -9 | wc -c)

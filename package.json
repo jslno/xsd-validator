@@ -1,6 +1,6 @@
 {
   "name": "@zugferd/xsd-validator",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Node.js native addon for XSD validation via vendored libxml2",
   "main": "index.js",
   "types": "index.d.ts",
@@ -21,8 +21,20 @@
   "files": [
     "index.d.ts",
     "index.js",
-    "browser.js"
+    "browser.js",
+    "workers.mjs"
   ],
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "workerd": "./workers.mjs",
+      "browser": "./browser.js",
+      "require": "./index.js",
+      "node": "./index.js",
+      "default": "./index.js"
+    },
+    "./*": "./*"
+  },
   "napi": {
     "binaryName": "xsd-validator",
     "targets": [
