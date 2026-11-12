@@ -1,9 +1,10 @@
 {
   "name": "@zugferd/xsd-validator",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Node.js native addon for XSD validation via vendored libxml2",
   "main": "index.js",
   "types": "index.d.ts",
+  "browser": "browser.js",
   "repository": {
     "url": "git+ssh://git@github.com/jslno/xsd-validator.git",
     "type": "git"
@@ -19,7 +20,8 @@
   ],
   "files": [
     "index.d.ts",
-    "index.js"
+    "index.js",
+    "browser.js"
   ],
   "napi": {
     "binaryName": "xsd-validator",
@@ -29,8 +31,16 @@
       "aarch64-pc-windows-msvc",
       "x86_64-apple-darwin",
       "x86_64-pc-windows-msvc",
-      "x86_64-unknown-linux-gnu"
-    ]
+      "x86_64-unknown-linux-gnu",
+      "wasm32-wasip1"
+    ],
+    "wasm": {
+      "initialMemory": 256,
+      "maximumMemory": 1280,
+      "browser": {
+        "fs": false
+      }
+    }
   },
   "engines": {
     "node": ">= 18.17.0 < 19 || >= 20.3.0 < 21 || >= 21.1.0"
@@ -44,6 +54,7 @@
     "bench": "node --import @oxc-node/core/register benchmark/bench.ts",
     "build": "napi build --platform --release",
     "build:debug": "napi build --platform",
+    "build:wasm": "napi build --platform --release --target wasm32-wasip1",
     "format": "run-p format:prettier format:rs format:toml",
     "format:prettier": "prettier . -w",
     "format:toml": "taplo format",
@@ -54,8 +65,8 @@
     "version": "napi version"
   },
   "devDependencies": {
-    "@emnapi/core": "^1.11.3",
-    "@emnapi/runtime": "^1.11.3",
+    "@emnapi/core": "2.0.0-beta.3",
+    "@emnapi/runtime": "2.0.0-beta.3",
     "@napi-rs/cli": "^3.10.12",
     "@napi-rs/wasm-runtime": "^1.2.7",
     "@oxc-node/core": "^0.1.7",
@@ -63,7 +74,7 @@
     "@tybys/wasm-util": "^0.10.4",
     "ava": "^8.3.0",
     "chalk": "^5.6.2",
-    "emnapi": "^1.11.3",
+    "emnapi": "2.0.0-beta.3",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
     "npm-run-all2": "^9.0.4",

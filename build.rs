@@ -26,9 +26,14 @@ fn main() {
     "cargo:rerun-if-changed={}",
     manifest_dir.join("native").join("schema_refs.c").display()
   );
+  println!(
+    "cargo:rerun-if-changed={}",
+    manifest_dir.join("native").join("wasi_compat.c").display()
+  );
 
   let target = env::var("TARGET").unwrap();
   let profile = env::var("PROFILE").unwrap();
+  let is_wasm = target.starts_with("wasm32");
 
   let mut config = cmake::Config::new(&libxml2_src);
   config
@@ -46,7 +51,36 @@ fn main() {
     .define("LIBXML2_WITH_DOCS", "OFF")
     .define("LIBXML2_WITH_DEBUG", "OFF")
     .define("LIBXML2_WITH_SCHEMAS", "ON")
-    .define("LIBXML2_WITH_THREADS", "ON");
+    .define("LIBXML2_WITH_THREADS", if is_wasm { "OFF" } else { "ON" });
+
+  if is_wasm {
+    println!("cargo:rerun-if-env-changed=WASI_SDK_PATH");
+    let wasi_sdk = env::var("WASI_SDK_PATH")
+      .map(PathBuf::from)
+      .unwrap_or_else(|_| {
+        panic!("WASI_SDK_PATH must point to a wasi-sdk install to build libxml2 for {target}")
+      });
+    let toolchain = ["wasi-sdk-p1.cmake", "wasi-sdk.cmake"]
+      .iter()
+      .map(|name| wasi_sdk.join("share").join("cmake").join(name))
+      .find(|path| path.is_file())
+      .unwrap_or_else(|| {
+        panic!(
+          "no wasi-sdk CMake toolchain file under {}",
+          wasi_sdk.display()
+        )
+      });
+
+    config
+      .define("CMAKE_TOOLCHAIN_FILE", &toolchain)
+      .define("WASI_SDK_PREFIX", &wasi_sdk)
+      .define("CMAKE_SYSTEM_NAME", "WASI");
+
+    // napi-build reserves a 64 MB stack, half of a Cloudflare Worker's 128 MB
+    // isolate; the last -zstack-size wins. Keep napi.wasm.initialMemory above
+    // stack + static data.
+    println!("cargo:rustc-link-arg=-zstack-size=8388608");
+  }
 
   // Match the MSVC CRT used by Node.js (/MD).
   if target.contains("msvc") {
@@ -72,6 +106,9 @@ fn main() {
     };
     println!("cargo:rustc-link-lib=static={}", lib_name);
     println!("cargo:rustc-link-lib=bcrypt");
+  } else if is_wasm {
+    // wasi-libc (including libm) comes from the wasi-sdk sysroot via wasm-ld.
+    println!("cargo:rustc-link-lib=static=xml2");
   } else {
     println!("cargo:rustc-link-lib=static=xml2");
     println!("cargo:rustc-link-lib=m");
@@ -94,6 +131,8 @@ fn main() {
     } else {
       build.flag("/MD");
     }
+  } else if is_wasm {
+    build.file(manifest_dir.join("native").join("wasi_compat.c"));
   } else {
     build.flag("-fPIC");
   }

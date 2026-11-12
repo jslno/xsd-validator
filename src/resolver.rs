@@ -19,8 +19,11 @@ use crate::libxml::{
   cstr_to_string, xmlBuildURI, xmlNewInputFromMemory, xmlParserErrors, xmlParserInput,
   xmlRegisterInputCallbacks, xmlResourceType, xml_char_to_string, xsd_collect_schema_locations,
 };
+#[cfg(not(target_family = "wasm"))]
 use napi::threadsafe_function::ThreadsafeFunction;
-use napi::{bindgen_prelude::Either, bindgen_prelude::Promise, Result, Status};
+#[cfg(not(target_family = "wasm"))]
+use napi::{bindgen_prelude::Either, bindgen_prelude::Promise, Status};
+use napi::{Error, Result};
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::ffi::CString;
@@ -34,6 +37,7 @@ use std::sync::Once;
 pub type VirtualSchemaFs = HashMap<String, String>;
 
 /// JS loader: `(filename: string) => string | Promise<string>`
+#[cfg(not(target_family = "wasm"))]
 pub type SchemaLoader =
   ThreadsafeFunction<String, Either<String, Promise<String>>, String, Status, false>;
 
@@ -53,60 +57,116 @@ pub struct SchemaStore {
   pub root_path: String,
 }
 
+/// Breadth-first discovery of `xs:include` / `xs:import` dependencies.
+///
+/// Callers drive it with their own loader: [`next_request`](Self::next_request)
+/// names the next schema to fetch and [`supply`](Self::supply) hands its text
+/// back. It never calls JavaScript itself, so both the native async path and
+/// the wasm promise chain share the same resolution order and errors.
+pub struct SchemaResolution {
+  vfs: VirtualSchemaFs,
+  seen: HashSet<String>,
+  queue: VecDeque<String>,
+  pending: VecDeque<String>,
+}
+
+impl SchemaResolution {
+  pub fn new(root_xsd: String) -> Self {
+    let root_path = ROOT_SCHEMA_PATH.to_string();
+    let mut vfs: VirtualSchemaFs = HashMap::new();
+    vfs.insert(root_path.clone(), root_xsd);
+
+    let mut seen: HashSet<String> = HashSet::new();
+    seen.insert(root_path.clone());
+
+    let mut queue: VecDeque<String> = VecDeque::new();
+    queue.push_back(root_path);
+
+    Self {
+      vfs,
+      seen,
+      queue,
+      pending: VecDeque::new(),
+    }
+  }
+
+  /// Virtual path of the next schema that must be loaded, or `None` once every
+  /// reference is in the VFS.
+  pub fn next_request(&mut self) -> Result<Option<String>> {
+    while self.pending.is_empty() {
+      let Some(current_path) = self.queue.pop_front() else {
+        return Ok(None);
+      };
+
+      let content = self
+        .vfs
+        .get(&current_path)
+        .ok_or_else(|| napi_error(format!("schema '{}' missing from VFS", current_path)))?;
+
+      for location in extract_schema_locations(content, &current_path)? {
+        let resolved = resolve_schema_location(&current_path, &location);
+        if self.seen.insert(resolved.clone()) {
+          self.pending.push_back(resolved);
+        }
+      }
+    }
+
+    Ok(self.pending.pop_front())
+  }
+
+  /// Store the loader result for a path returned by `next_request`.
+  pub fn supply(&mut self, path: String, content: String) -> Result<()> {
+    if content.trim().is_empty() {
+      return Err(napi_error(format!(
+        "schema loader returned empty content for '{}'",
+        path
+      )));
+    }
+
+    self.vfs.insert(path.clone(), content);
+    self.queue.push_back(path);
+    Ok(())
+  }
+
+  pub fn finish(self) -> SchemaStore {
+    SchemaStore {
+      vfs: self.vfs,
+      root_path: ROOT_SCHEMA_PATH.to_string(),
+    }
+  }
+}
+
+pub fn missing_loader_error(path: &str) -> Error {
+  napi_error(format!(
+    "schema references '{}' but no loader was provided",
+    path
+  ))
+}
+
 /// Recursively resolve `xs:include` / `xs:import` dependencies by calling the
 /// JavaScript loader on the Tokio/napi async context (never from libxml2 C).
 ///
 /// When `loader` is `None`, the root schema must not reference other files.
+#[cfg(not(target_family = "wasm"))]
 pub async fn build_schema_store(
   root_xsd: String,
   loader: Option<&SchemaLoader>,
 ) -> Result<SchemaStore> {
-  let root_path = ROOT_SCHEMA_PATH.to_string();
-  let mut vfs: VirtualSchemaFs = HashMap::new();
-  vfs.insert(root_path.clone(), root_xsd);
+  let mut resolution = SchemaResolution::new(root_xsd);
 
-  let mut seen: HashSet<String> = HashSet::new();
-  seen.insert(root_path.clone());
+  while let Some(path) = resolution.next_request()? {
+    let Some(loader) = loader else {
+      return Err(missing_loader_error(&path));
+    };
 
-  let mut queue: VecDeque<String> = VecDeque::new();
-  queue.push_back(root_path.clone());
-
-  while let Some(current_path) = queue.pop_front() {
-    let content = vfs
-      .get(&current_path)
-      .cloned()
-      .ok_or_else(|| napi_error(format!("schema '{}' missing from VFS", current_path)))?;
-
-    let refs = extract_schema_locations(&content, &current_path)?;
-    for location in refs {
-      let resolved = resolve_schema_location(&current_path, &location);
-      if !seen.insert(resolved.clone()) {
-        continue;
-      }
-
-      let Some(loader) = loader else {
-        return Err(napi_error(format!(
-          "schema references '{}' but no loader was provided",
-          resolved
-        )));
-      };
-
-      let loaded = call_loader(loader, &resolved).await?;
-      if loaded.trim().is_empty() {
-        return Err(napi_error(format!(
-          "schema loader returned empty content for '{}'",
-          resolved
-        )));
-      }
-
-      vfs.insert(resolved.clone(), loaded);
-      queue.push_back(resolved);
-    }
+    let loaded = call_loader(loader, &path).await?;
+    resolution.supply(path, loaded)?;
   }
 
-  Ok(SchemaStore { vfs, root_path })
+  Ok(resolution.finish())
 }
 
+#[cfg(not(target_family = "wasm"))]
 async fn call_loader(loader: &SchemaLoader, filename: &str) -> Result<String> {
   let result = loader
     .call_async_catch(filename.to_string())

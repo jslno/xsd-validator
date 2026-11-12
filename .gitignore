@@ -150,6 +150,7 @@ dist
 
 *.node
 *.wasm
+.wrangler
 
 ### Node Patch ###
 # Serverless Webpack directories

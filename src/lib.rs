@@ -19,10 +19,12 @@ use libxml::{
 };
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
-use resolver::{
-  build_schema_store, root_schema_path, vfs_resource_loader, InputCallbackGuard, SchemaLoader,
-  SchemaStore,
-};
+#[cfg(not(target_family = "wasm"))]
+use resolver::{build_schema_store, SchemaLoader};
+use resolver::{root_schema_path, vfs_resource_loader, InputCallbackGuard, SchemaStore};
+
+#[cfg(target_family = "wasm")]
+mod wasm_create;
 use std::ffi::CString;
 use std::os::raw::{c_char, c_void};
 use std::ptr;
@@ -77,6 +79,7 @@ impl XsdValidator {
   /// fetch `xs:include` / `xs:import` targets. It is never invoked from a
   /// libxml2 C callback thread. Omit the loader when the root XSD has no
   /// external references.
+  #[cfg(not(target_family = "wasm"))]
   #[napi(ts_args_type = "rootXsd: string, loader?: (filename: string) => string | Promise<string>")]
   pub async fn create(root_xsd: String, loader: Option<SchemaLoader>) -> Result<Self> {
     if root_xsd.trim().is_empty() {
@@ -100,6 +103,19 @@ impl XsdValidator {
         Err(err)
       }
     }
+  }
+
+  /// Same JS contract as the native `create`, whose declaration `index.d.ts`
+  /// carries: the impl-level `#[napi]` sees both cfg variants and would emit
+  /// a second one.
+  #[cfg(target_family = "wasm")]
+  #[napi(skip_typescript)]
+  pub fn create<'env>(
+    env: &'env Env,
+    root_xsd: String,
+    loader: Option<Function<'env, String, Unknown<'static>>>,
+  ) -> Result<PromiseRaw<'env, Unknown<'static>>> {
+    wasm_create::create(env, root_xsd, loader)
   }
 
   /// Validate an XML document string against the compiled schema.
