@@ -1,5 +1,6 @@
 import test from 'ava'
 
+import './wasi-flavor.js'
 import { XsdValidator } from '../index.js'
 
 const ROOT_XSD = `<?xml version="1.0" encoding="UTF-8"?>

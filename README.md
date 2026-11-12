@@ -5,7 +5,7 @@
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![node](https://img.shields.io/node/v/@zugferd/xsd-validator.svg)](package.json)
 
-Fast, self-contained **XML Schema (XSD) validation for Node.js**, implemented as a native addon in Rust with a statically vendored [libxml2](https://gitlab.gnome.org/GNOME/libxml2).
+Fast, self-contained **XML Schema (XSD) validation for Node.js**, implemented as a native addon in Rust with a statically vendored [libxml2](https://gitlab.gnome.org/GNOME/libxml2). The same code is also published as a WebAssembly (`wasm32-wasip1`) build for runtimes without native addons, such as [Cloudflare Workers](#webassembly--cloudflare-workers).
 
 It compiles an XSD once — recursively resolving `xs:include`, `xs:import`, `xs:redefine`, and `xs:override` through a loader you provide — then validates XML documents synchronously against the compiled schema. It works with any XSD, and is particularly suited to e-invoicing formats such as ZUGFeRD/Factur-X, XRechnung, and UN/CEFACT Cross Industry Invoice (CII).
 
@@ -13,6 +13,7 @@ It compiles an XSD once — recursively resolving `xs:include`, `xs:import`, `xs
 
 - **No system dependencies.** libxml2 is compiled in and statically linked, so validation behaves consistently across platforms without installing libxml2 or a build toolchain at runtime.
 - **Prebuilt native binaries.** macOS (x64/arm64), Linux (x64/arm64 GNU), and Windows (x64/arm64) binaries are published as optional dependencies and selected automatically at install time.
+- **WebAssembly build.** A threadless `wasm32-wasip1` build runs where native addons cannot, including Cloudflare Workers and browsers without cross-origin isolation.
 - **Async, schema-aware loading.** `XsdValidator.create()` accepts a sync or async loader for external schema references. The loader runs on the Node.js side — never from a libxml2 C callback — and is called once per unique dependency during compilation.
 - **Safe concurrency.** Multiple validators can be created concurrently; each schema compile uses its own in-memory virtual filesystem.
 - **Compile once, validate many.** Schema compilation is the expensive step. Reuse the resulting `XsdValidator` for fast, synchronous validation of many documents.
@@ -104,6 +105,50 @@ const documents = await Promise.all(files.map(async (file) => ({ file, xml: awai
 const valid = documents.filter(({ xml }) => validator.validate(xml))
 ```
 
+## WebAssembly / Cloudflare Workers
+
+The `wasm32-wasip1` build is published as `@zugferd/xsd-validator-wasm32-wasip1`. It needs no threads or `SharedArrayBuffer`, and exposes the same `XsdValidator` API, including sync or async loaders.
+
+### Cloudflare Workers
+
+Depend on the WebAssembly package directly, because npm skips it on non-wasm CPUs when installed as an optional dependency of the main package:
+
+```bash
+npm install @zugferd/xsd-validator-wasm32-wasip1
+```
+
+Import the Workers loader and the `.wasm` module, which Wrangler bundles as a compiled `WebAssembly.Module`:
+
+```ts
+import type { XsdValidator } from '@zugferd/xsd-validator-wasm32-wasip1'
+import { instantiate } from '@zugferd/xsd-validator-wasm32-wasip1/workerd'
+import wasmModule from '@zugferd/xsd-validator-wasm32-wasip1/wasm.wasm'
+
+let validator: Promise<XsdValidator> | undefined
+
+export default {
+  async fetch(request: Request): Promise<Response> {
+    // instantiate() is a per-isolate singleton; compile the schema once and reuse it.
+    validator ??= instantiate(wasmModule).then(({ XsdValidator }) => XsdValidator.create(ROOT_XSD))
+    const valid = (await validator).validate(await request.text())
+    return Response.json({ valid })
+  },
+}
+```
+
+Use `compatibility_date = "2025-06-01"` or later in `wrangler.toml`. The bundled Worker is about 370 KiB gzipped. A complete example with a multi-file schema lives in [`examples/cloudflare-worker`](examples/cloudflare-worker).
+
+### Browsers and Node.js
+
+Bundlers that honor the `browser` field resolve `@zugferd/xsd-validator` to the WebAssembly package. In Node.js, the native addon is used by default; set `NAPI_RS_WASI_FLAVOR=wasm32-wasip1` (or `NAPI_RS_FORCE_WASI=true`) to load the WebAssembly build instead.
+
+In both cases the WebAssembly package must be installed, which npm does not do on other CPUs by default. Install it with `npm install --cpu=wasm32 @zugferd/xsd-validator`, or depend on `@zugferd/xsd-validator-wasm32-wasip1` directly.
+
+### Limits
+
+- Linear memory starts at 16 MiB and can grow to 80 MiB, which bounds the size of schemas and documents a single instance can hold. Cloudflare Workers allow 128 MiB per isolate.
+- Validation is synchronous and runs on the calling thread, as with the native addon.
+
 ## API
 
 Types are bundled in [`index.d.ts`](index.d.ts).
@@ -130,6 +175,7 @@ Types are bundled in [`index.d.ts`](index.d.ts).
 - [Rust](https://www.rust-lang.org/tools/install) stable toolchain
 - [CMake](https://cmake.org/) and a C/C++ toolchain (MSVC Build Tools on Windows)
 - Git submodules initialized (libxml2 is vendored as a submodule)
+- For the WebAssembly build only: [wasi-sdk](https://github.com/WebAssembly/wasi-sdk) 34 or later with `WASI_SDK_PATH` pointing at it, and `rustup target add wasm32-wasip1`
 
 ### Setup
 
@@ -151,6 +197,7 @@ pnpm test
 | ------------------ | -------------------------------------------------------------------------------- |
 | `pnpm build`       | Build the release native addon with napi-rs                                      |
 | `pnpm build:debug` | Build a debug native addon                                                       |
+| `pnpm build:wasm`  | Build the `wasm32-wasip1` WebAssembly module (requires `WASI_SDK_PATH`)          |
 | `pnpm test`        | Run the [AVA](https://github.com/avajs/ava) test suite                           |
 | `pnpm bench`       | Run [tinybench](https://github.com/tinylibs/tinybench) benchmarks                |
 | `pnpm lint`        | Lint JavaScript/TypeScript with [oxlint](https://oxc.rs/docs/guide/usage/linter) |
@@ -158,21 +205,24 @@ pnpm test
 
 ### Project layout
 
-| Path                                           | Purpose                                                        |
-| ---------------------------------------------- | -------------------------------------------------------------- |
-| [`src/lib.rs`](src/lib.rs)                     | napi-rs bindings and validator lifecycle                       |
-| [`src/resolver.rs`](src/resolver.rs)           | Recursive schema resolution and in-memory virtual filesystem   |
-| [`src/error.rs`](src/error.rs)                 | libxml2 error collection and JavaScript error conversion       |
-| [`native/schema_refs.c`](native/schema_refs.c) | Helper that walks XSD nodes to collect schema references       |
-| [`build.rs`](build.rs)                         | Builds the vendored libxml2 and links the native helper        |
-| [`vendor/libxml2`](vendor/libxml2)             | libxml2 git submodule                                          |
-| [`__test__`](__test__)                         | AVA tests, XRechnung fixtures, and CII schemas                 |
-| [`benchmark/bench.ts`](benchmark/bench.ts)     | Validation benchmarks                                          |
-| `npm/`                                         | Per-platform npm package manifests generated during publishing |
+| Path                                                       | Purpose                                                        |
+| ---------------------------------------------------------- | -------------------------------------------------------------- |
+| [`src/lib.rs`](src/lib.rs)                                 | napi-rs bindings and validator lifecycle                       |
+| [`src/resolver.rs`](src/resolver.rs)                       | Recursive schema resolution and in-memory virtual filesystem   |
+| [`src/wasm_create.rs`](src/wasm_create.rs)                 | Threadless `create()` for WebAssembly, chained on JS promises  |
+| [`src/error.rs`](src/error.rs)                             | libxml2 error collection and JavaScript error conversion       |
+| [`native/schema_refs.c`](native/schema_refs.c)             | Helper that walks XSD nodes to collect schema references       |
+| [`native/wasi_compat.c`](native/wasi_compat.c)             | Shim bridging Rust's WASI startup code and wasi-sdk's libc     |
+| [`build.rs`](build.rs)                                     | Builds the vendored libxml2 and links the native helper        |
+| [`vendor/libxml2`](vendor/libxml2)                         | libxml2 git submodule                                          |
+| [`__test__`](__test__)                                     | AVA tests, XRechnung fixtures, and CII schemas                 |
+| [`benchmark/bench.ts`](benchmark/bench.ts)                 | Validation benchmarks                                          |
+| [`examples/cloudflare-worker`](examples/cloudflare-worker) | Cloudflare Worker using the WebAssembly build                  |
+| `npm/`                                                     | Per-platform npm package manifests generated during publishing |
 
 ### Continuous integration
 
-[`.github/workflows/CI.yml`](.github/workflows/CI.yml) runs linting plus a build/test matrix for macOS, Linux, and Windows on x64 and arm64. Releases are published from version tags via [`publish.yml`](.github/workflows/publish.yml).
+[`.github/workflows/CI.yml`](.github/workflows/CI.yml) runs linting plus a build/test matrix for macOS, Linux, and Windows on x64 and arm64, and builds the `wasm32-wasip1` module, runs the test suite against it, and bundles the Cloudflare Worker example. Releases are published from version tags via [`publish.yml`](.github/workflows/publish.yml).
 
 ## Contributing
 

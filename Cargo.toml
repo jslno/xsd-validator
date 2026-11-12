@@ -11,12 +11,17 @@ crate-type = ["cdylib"]
 [dependencies]
 napi-derive = "3"
 
-[dependencies.napi]
+[target.'cfg(not(target_family = "wasm"))'.dependencies.napi]
 version = "3"
 features = ["napi9", "async"]
 
+# Threadless WASI has no thread to run Tokio on; `create` chains JS promises instead.
+[target.'cfg(target_family = "wasm")'.dependencies.napi]
+version = "3"
+features = ["napi9"]
+
 [build-dependencies]
-napi-build = "2"
+napi-build = "2.6"
 cmake = "0.1"
 cc = "1.2"
 

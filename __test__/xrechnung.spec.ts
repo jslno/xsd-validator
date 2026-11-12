@@ -2,6 +2,7 @@ import test from 'ava'
 
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import './wasi-flavor.js'
 import { XsdValidator } from '../index.js'
 import { readFile } from 'node:fs/promises'
 

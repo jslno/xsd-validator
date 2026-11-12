@@ -5,5 +5,6 @@ target
 /*.cjs
 /index.js
 vendor
-index.d.ts
+/*.d.ts
+/*.d.cts
 pnpm-lock.yaml
